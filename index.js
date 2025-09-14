@@ -13,22 +13,23 @@ const databaseURL = process.env.MONGO_URI;
 
 app.use(express.json());
 app.use(cookieParser());
-app.use(
-    cors({
-        origin: process.env.ORIGIN || "http://localhost:5173",
-        credentials: true,
-    })
-);
+app.use(cors({
+    origin: (origin, callback) => {
+        const allowedOrigins = (process.env.ORIGIN || "").split(",");
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error("Not allowed by CORS"));
+        }
+    },
+    credentials: true
+}));
 
 app.use("/api/auth", authRouter);
 app.use("/api/cart", cartRouter);
 
 app.get("/", (req, res) => {
     res.send("Backend is running 🚀");
-});
-
-app.get("/success", (req, res) => {
-    res.send("Ordered Successfully!");
 });
 
 let isConnected = false;

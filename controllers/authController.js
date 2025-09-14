@@ -2,144 +2,172 @@ import User from "../models/user.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
+const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    path: "/",
+    maxAge: 60 * 60 * 1000, // 1 hour
+};
+
 const register = async (req, res) => {
     try {
-        const { name, email, password } = req.body;
+        let { name, email, password } = req.body;
 
         if (!name || !email || !password) {
             return res.status(400).json({
                 success: false,
-                message: "All fields are required."
-            })
+                message: "All fields are required.",
+            });
         }
-        const user = await User.findOne({ email })
 
-        if (user) {
-            return res.status(400).json({
+        name = name.trim();
+        email = email.trim().toLowerCase();
+
+        const existing = await User.findOne({ email });
+        if (existing) {
+            return res.status(409).json({
                 success: false,
-                message: "Email already exist."
-            })
+                message: "Email already in use.",
+            });
         }
 
-        const hashedPassword = await bcrypt.hash(password, 10)
+        const hashedPassword = await bcrypt.hash(password, 10);
 
-        const newUser = new User({
-            name,
-            email,
-            password: hashedPassword
-        })
+        const newUser = new User({ name, email, password: hashedPassword });
+        await newUser.save();
 
-        await newUser.save()
+        const userResponse = {
+            id: newUser._id,
+            name: newUser.name,
+            email: newUser.email,
+        };
 
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
-            message: "Account Created."
-        })
-
+            message: "Account created.",
+            user: userResponse,
+        });
     } catch (error) {
-        res.status(500).json({
+        console.error("Register error:", error);
+        return res.status(500).json({
             success: false,
-            message: error.message
-        })
+            message: "Server error.",
+        });
     }
-}
+};
+
 const login = async (req, res) => {
     try {
-
-        const { email, password } = req.body;
+        let { email, password } = req.body;
 
         if (!email || !password) {
             return res.status(400).json({
                 success: false,
-                message: "All fields are required."
-            })
+                message: "All fields are required.",
+            });
         }
-        const user = await User.findOne({ email })
 
+        email = email.trim().toLowerCase();
+
+        const user = await User.findOne({ email });
         if (!user) {
-            return res.status(404).json({
+            return res.status(401).json({
                 success: false,
-                message: "User not found."
-            })
+                message: "Invalid email or password.",
+            });
         }
 
-        const comparePassword = await bcrypt.compare(password, user.password)
-
-        if (!comparePassword) {
-            return res.status(400).json({
+        const match = await bcrypt.compare(password, user.password);
+        if (!match) {
+            return res.status(401).json({
                 success: false,
-                message: "Wrong email or password."
-            })
+                message: "Invalid email or password.",
+            });
         }
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' })
-        res.cookie('token', token, {
-            httpOnly: true,
-            secure: true,
-            sameSite: 'none',
-            expires: new Date(Date.now() + 3600000)
-        })
 
-        res.status(200).json({
+        if (!process.env.JWT_SECRET) {
+            console.error("JWT_SECRET is missing in environment");
+            return res.status(500).json({
+                success: false,
+                message: "Server configuration error.",
+            });
+        }
+
+        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+            expiresIn: "1h",
+        });
+
+        res.cookie("token", token, cookieOptions);
+
+        const userResponse = {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            cart: user.cart || [],
+        };
+
+        return res.status(200).json({
             success: true,
-            message: "Login Successfull."
-        })
-
-
+            message: "Login successful.",
+            user: userResponse,
+        });
     } catch (error) {
-        res.status(500).json({
+        console.error("Login error:", error);
+        return res.status(500).json({
             success: false,
-            message: error.message
-        })
+            message: "Server error.",
+        });
     }
-}
+};
 
 const logout = async (req, res) => {
     try {
-        res.clearCookie('token', {
-            httpOnly: true,
-            secure: true,
-            sameSite: 'none',
-            expires: new Date(Date.now())
-        })
+        res.clearCookie("token", { ...cookieOptions, maxAge: 0 });
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
-            message: "Logout Successfull."
-        })
-
+            message: "Logout successful.",
+        });
     } catch (error) {
-        res.status(500).json({
+        console.error("Logout error:", error);
+        return res.status(500).json({
             success: false,
-            message: error.message
-        })
+            message: "Server error.",
+        });
     }
-}
+};
 
 const getUser = async (req, res) => {
     try {
         const userId = req.id;
 
-        const user = await User.findById(userId).select("-password")
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message: "Unauthorized.",
+            });
+        }
 
+        const user = await User.findById(userId).select("-password");
         if (!user) {
             return res.status(404).json({
                 success: false,
-                message: "User not found."
-            })
+                message: "User not found.",
+            });
         }
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
-            user
-        })
-
+            user,
+        });
     } catch (error) {
-        res.status(500).json({
+        console.error("getUser error:", error);
+        return res.status(500).json({
             success: false,
-            message: error.message
-        })
+            message: "Server error.",
+        });
     }
-}
-
+};
 
 export { register, login, logout, getUser };

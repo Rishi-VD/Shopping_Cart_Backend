@@ -1,32 +1,31 @@
 import User from "../models/user.js";
-import Stripe from 'stripe';
+import Stripe from "stripe";
 import dotenv from "dotenv";
 dotenv.config();
 
 const stripe = new Stripe(process.env.STRIPE_KEY);
 
 const addToCart = async (req, res) => {
-    const { id, title, description, image, price, category } = req.body
-    const userId = req.id
+    const { id, title, description, image, price, category } = req.body;
+    const userId = req.id;
 
     try {
-
-        const user = await User.findById(userId)
+        const user = await User.findById(userId);
         if (!user) {
             return res.status(401).json({
                 success: false,
-                message: "You are not authorized."
-            })
+                message: "You are not authorized.",
+            });
         }
 
-        const existingProduct = user.cart.find(item => item.id == id)
+        const existingProduct = user.cart.find((item) => item.id === id);
         if (existingProduct) {
             return res.status(200).json({
                 success: false,
                 message: "Already in cart.",
-
-            })
+            });
         }
+
         const product = {
             id,
             title,
@@ -35,161 +34,137 @@ const addToCart = async (req, res) => {
             price,
             category,
             quantity: 1,
-        }
+        };
 
-        user.cart.push(product)
-
-        await user.save()
+        user.cart.push(product);
+        await user.save();
 
         res.status(200).json({
             success: true,
             message: "Added to cart",
-
-        })
-
+        });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
-        })
+            message: error.message,
+        });
     }
-
-}
+};
 
 const removeFromCart = async (req, res) => {
     try {
-        const userId = req.id
-        const user = await User.findById(userId)
-        const itemId = req.params.id
+        const userId = req.id;
+        const user = await User.findById(userId);
+        const itemId = req.params.id;
+
         if (!user) {
             return res.status(401).json({
                 success: false,
-                message: "You are not authorized."
-            })
+                message: "You are not authorized.",
+            });
         }
 
-
-        const productIndex = user.cart.findIndex(item => item.id == itemId)
-
-        if (productIndex == -1) {
-            return res.status(404).json({
-                success: false,
-                message: "Item not found."
-            })
-        }
-
-        user.cart.splice(productIndex, 1)
-
-        await user.save()
-
-        res.status(200).json({
-            success: true,
-            message: "Item removed from cart."
-        })
-
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        })
-    }
-}
-
-const incrementQuantity = async (req, res) => {
-    const userId = req.id
-    const itemId = req.params.id
-
-    try {
-        const user = await User.findById(userId)
-        if (!user) {
-            return res.status(401).json({
-                success: false,
-                message: "You are not authorized."
-            })
-        }
-
-        const productIndex = user.cart.findIndex(item => item.id === itemId)
+        const productIndex = user.cart.findIndex((item) => item.id === itemId);
         if (productIndex === -1) {
             return res.status(404).json({
                 success: false,
-                message: "Item not found."
-            })
+                message: "Item not found.",
+            });
         }
 
-        // Increment quantity
-        user.cart[productIndex].quantity += 1
+        user.cart.splice(productIndex, 1);
+        await user.save();
 
+        res.status(200).json({
+            success: true,
+            message: "Item removed from cart.",
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
 
+const incrementQuantity = async (req, res) => {
+    const userId = req.id;
+    const itemId = req.params.id;
 
-        // Save the updated user document
-        await user.save()
+    try {
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(401).json({
+                success: false,
+                message: "You are not authorized.",
+            });
+        }
+
+        const productIndex = user.cart.findIndex((item) => item.id === itemId);
+        if (productIndex === -1) {
+            return res.status(404).json({
+                success: false,
+                message: "Item not found.",
+            });
+        }
+
+        user.cart[productIndex].quantity += 1;
+        await user.save();
 
         res.status(200).json({
             success: true,
             message: "Quantity updated.",
-
-        })
-
+        });
     } catch (error) {
-
         res.status(500).json({
             success: false,
-            message: error.message
-        })
+            message: error.message,
+        });
     }
-}
+};
 
 const decrementQuantity = async (req, res) => {
-    const userId = req.id
-    const itemId = req.params.id
+    const userId = req.id;
+    const itemId = req.params.id;
 
     try {
-        const user = await User.findById(userId)
+        const user = await User.findById(userId);
         if (!user) {
             return res.status(401).json({
                 success: false,
-                message: "You are not authorized."
-            })
+                message: "You are not authorized.",
+            });
         }
 
-        const productIndex = user.cart.findIndex(item => item.id === itemId)
+        const productIndex = user.cart.findIndex((item) => item.id === itemId);
         if (productIndex === -1) {
             return res.status(404).json({
                 success: false,
-                message: "Item not found."
-            })
+                message: "Item not found.",
+            });
         }
 
-
-
-
-
-
         if (user.cart[productIndex].quantity > 1) {
-            user.cart[productIndex].quantity -= 1
-            await user.save()
+            user.cart[productIndex].quantity -= 1;
+            await user.save();
         } else {
             return res.status(400).json({
                 success: false,
-                message: "Quantity should not be less than 0.",
-
-            })
+                message: "Quantity should not be less than 1.",
+            });
         }
 
         res.status(200).json({
             success: true,
             message: "Quantity updated",
-
-        })
-
+        });
     } catch (error) {
-
         res.status(500).json({
             success: false,
-            message: error.message
-        })
+            message: error.message,
+        });
     }
-}
+};
 
 const checkOut = async (req, res) => {
     try {
@@ -198,24 +173,22 @@ const checkOut = async (req, res) => {
         if (!items || !Array.isArray(items) || items.length === 0) {
             return res.status(400).json({
                 success: false,
-                message: "No items provided for checkout."
+                message: "No items provided for checkout.",
             });
         }
 
         const session = await stripe.checkout.sessions.create({
-            payment_method_types: ['card'],
-            mode: 'payment',
-            line_items: items.map(item => ({
+            payment_method_types: ["card"],
+            mode: "payment",
+            line_items: items.map((item) => ({
                 price_data: {
-                    currency: 'usd',
-                    product_data: {
-                        name: item.title,
-                    },
+                    currency: "usd",
+                    product_data: { name: item.title },
                     unit_amount: Math.round(item.price * 100),
                 },
                 quantity: item.quantity,
             })),
-            success_url: `${process.env.ORIGIN}/success`,
+            success_url: `${process.env.ORIGIN}/success?session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: `${process.env.ORIGIN}/cancel`,
         });
 
@@ -229,45 +202,67 @@ const checkOut = async (req, res) => {
     }
 };
 
-
 const clearCart = async (req, res) => {
     try {
-        const userId = req.id
-        const user = await User.findById(userId)
+        const userId = req.id;
+        const user = await User.findById(userId);
 
         if (!user) {
             return res.status(401).json({
                 success: false,
-                message: "You are not authorized."
-            })
+                message: "You are not authorized.",
+            });
         }
-        user.cart = []
-        await user.save()
+
+        user.cart = [];
+        await user.save();
 
         res.status(200).json({
             success: true,
-            message: "Cart clear."
-        })
-
-
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        })
-    }
-}
-
-const success = async (req, res) => {
-    try {
-        res.status(200).json({
-            success: true,
-            message: "Payment Successful! 🎉 Your order has been placed."
+            message: "Cart cleared.",
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
+        });
+    }
+};
+
+const success = async (req, res) => {
+    try {
+        const { session_id } = req.query;
+
+        if (!session_id) {
+            return res.status(400).json({
+                success: false,
+                message: "Session ID is required.",
+            });
+        }
+
+        const session = await stripe.checkout.sessions.retrieve(session_id, {
+            expand: ["payment_intent", "customer"],
+        });
+
+        const userId = req.id;
+        if (userId) {
+            const user = await User.findById(userId);
+            if (user) {
+                user.cart = [];
+                await user.save();
+            }
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Payment verified successfully & cart cleared!",
+            session,
+        });
+    } catch (error) {
+        console.error("Stripe Success Error:", error.message);
+        res.status(500).json({
+            success: false,
+            message: "Failed to verify payment",
         });
     }
 };
@@ -279,5 +274,5 @@ export {
     decrementQuantity,
     checkOut,
     clearCart,
-    success
+    success,
 };
