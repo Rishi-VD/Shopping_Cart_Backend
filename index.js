@@ -14,17 +14,7 @@ const databaseURL = process.env.MONGO_URI;
 app.use(express.json());
 app.use(cookieParser());
 app.use(cors({
-    origin: (origin, callback) => {
-        const allowedOrigins = [
-            "http://localhost:5173", // local dev
-            "https://shopping-cart-mernstack.netlify.app" // production frontend
-        ];
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error("Not allowed by CORS"));
-        }
-    },
+    origin: "https://shopping-cart-mernstack.netlify.app",
     credentials: true
 }));
 
