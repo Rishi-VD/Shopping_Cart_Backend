@@ -15,7 +15,10 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(cors({
     origin: (origin, callback) => {
-        const allowedOrigins = (process.env.ORIGIN || "").split(",");
+        const allowedOrigins = [
+            "http://localhost:5173", // local dev
+            "https://shopping-cart-mernstack.netlify.app" // production frontend
+        ];
         if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
